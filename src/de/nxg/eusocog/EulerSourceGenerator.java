@@ -321,13 +321,12 @@ public final class EulerSourceGenerator {
         try {
             Path eulerConfigPath = sourceDestinationFolder.resolve("EulerConfig.java");
             if (!Files.exists(eulerConfigPath)) {
-                if (Files.exists(sourceDestinationFolder)) {
+                if (!Files.exists(sourceDestinationFolder)) {
                     Files.createDirectories(sourceDestinationFolder);
                 }
                 String eulerConfigClass = String.format(CONFIG_CLASS_FORMAT,
                         "package " + sourcePackage + ";");
-                Files.write(eulerConfigPath, eulerConfigClass.getBytes(),
-                        StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+                Files.write(eulerConfigPath, eulerConfigClass.getBytes());
             }
         } catch (IOException e) {
             e.printStackTrace();
