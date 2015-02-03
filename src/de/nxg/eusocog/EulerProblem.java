@@ -1,14 +1,20 @@
 package de.nxg.eusocog;
 
-import java.awt.*;
-import java.awt.datatransfer.*;
-import java.util.concurrent.*;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Base Class that all Problems should extend from.
  * @author markus.moser
  */
 public abstract class EulerProblem {
+
+    private IEulerConfig config;
+    private long startTime;
+    private long lastTimedPrint;
 
     /**
      * No-Arg-Constructor
@@ -32,24 +38,57 @@ public abstract class EulerProblem {
      */
     public abstract Object solve();
 
+    /**
+     * When called this method will print the current time since the start of the program.
+     * Usefull when profiling.<br/>
+     * <code>"&ltstring> took &lttime> since the start"</code>
+     * @param string, will be printed as the cause
+     */
+    public void time(String string) {
+        System.out.println(string + " took " + getTimeDisplayString() + " since the start");
+    }
+
+    /**
+     * When called this method will print the current time since the start of the program.
+     * Usefull when profiling.<br/>
+     * <code>"Something took &lttime> since the start"</code>
+     */
+    public void time() {
+        time("Something");
+    }
+
+    public void timedPrint(Object obj, long milliseconds) {
+        long now = System.nanoTime();
+        if (now - lastTimedPrint > milliseconds * 1_000_000) {
+            lastTimedPrint = now;
+            System.out.println("[" + (now - startTime) / 1_000_000 + " ms] " + objectToString(obj));
+        }
+    }
+
+    private String getTimeDisplayString() {
+        long time = config.getFinishTimeUnit().convert(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+        return  time + " "+ config.getFinishTimeUnit().name().toLowerCase();
+    }
+
     public static void start(Class<? extends EulerProblem> classToStart,
             IEulerConfig config) {
         try {
             EulerProblem problem = classToStart.newInstance();
-            System.out.println("Solving " + classToStart.getSimpleName() + "...");
+            problem.config = config;
 
-            long startTime = System.nanoTime();
+            System.out.println("Solving " + classToStart.getSimpleName() + "...");
+            problem.startTime = System.nanoTime();
             Object solveObject = problem.solve();
 
-            long time = config.getFinishTimeUnit().convert(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-            System.out.println("Finished in " + time + " " + config.getFinishTimeUnit().name().toLowerCase());
+            System.out.println("Finished in " + problem.getTimeDisplayString());
 
             if (solveObject == null) {
                 System.out.println("The Result is null! Please return a valid String.");
                 return;
             }
 
-            String solve = solveObject.toString();
+            String solve = null;
+            solve = objectToString(solveObject);
             System.out.println("Result: " + solve);
             if (config.shouldCopyToClipboard()) {
                 Clipboard systemClipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
@@ -57,6 +96,14 @@ public abstract class EulerProblem {
             }
         } catch (InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static String objectToString(Object obj) {
+        if (obj instanceof Object[]) {
+            return Arrays.deepToString((Object[]) obj);
+        } else {
+            return obj.toString();
         }
     }
 }
