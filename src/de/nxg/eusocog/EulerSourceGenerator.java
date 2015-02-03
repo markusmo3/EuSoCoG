@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * This Class generates the source for all Euler Problems available at
@@ -36,14 +38,14 @@ public final class EulerSourceGenerator {
 
     /* Search strings to identify website with a valid Problem on it */
     private static final String SEARCH_BEGIN = "<div class=\"problem_content\" role=\"problem\">";
-    private static final String SEARCH_END = "</div>";
+    private static final String DIV_REGEX = "(?<begin><div[^<>]*>)|(?<end></div[^<>]*>)";
 
     /*
      * Replace internal website links with absolute links, that way all the images get
      * correctly presented inside the IDE
      */
-    private static final String IMAGE_REGEX = "<img src=project/images/([^\\\">]+)>";
-    private static final String IMAGE_REGEX_REPLACEMENT = "<img src=https://projecteuler.net/project/images/$1>";
+    private static final String IMAGE_REGEX = "<img src=(?<qm>\\\"|')?project\\/images\\/(?<file>[^\\\">]+)(?:\\\\k<qm>)?[^>]+>";
+    private static final String IMAGE_REGEX_REPLACEMENT = "<img src=https://projecteuler.net/project/images/${file}>";
 
     private static final String PACKAGE_FORMAT = "%1$s%2$03d_%3$03d";
 
@@ -364,16 +366,36 @@ public final class EulerSourceGenerator {
     }
 
     private static String extractProblem(StringBuffer sb) {
+        String substring = null;
+
         int indexOf = sb.indexOf(SEARCH_BEGIN);
         if (indexOf != -1) {
-            int nextIndexOf = sb.indexOf(SEARCH_END, indexOf);
+            int nextIndexOf = -1;
+            Matcher matcher = Pattern.compile(DIV_REGEX)
+                    .matcher(sb.toString().substring(indexOf));
+            int count = 0;
+            while (matcher.find() && !matcher.hitEnd()) {
+                String begin = matcher.group("begin");
+                String end = matcher.group("end");
+                if (begin != null) {
+                    count++;
+                } else if (end != null) {
+                    count--;
+                }
+                if (count == 0) {
+                    nextIndexOf = matcher.start();
+                    break;
+                }
+            }
+
             if (nextIndexOf != -1) {
-                String substring = sb.substring(indexOf + SEARCH_BEGIN.length(), nextIndexOf).trim();
-                substring = substring.replaceAll(IMAGE_REGEX, IMAGE_REGEX_REPLACEMENT);
-                return substring;
+                substring = sb.substring(indexOf + SEARCH_BEGIN.length(), indexOf + nextIndexOf).trim();
             }
         }
-        return null;
+        if (substring != null) {
+            substring = substring.replaceAll(IMAGE_REGEX, IMAGE_REGEX_REPLACEMENT);
+        }
+        return substring;
     }
 
     public static void main(String[] args) throws IOException {
