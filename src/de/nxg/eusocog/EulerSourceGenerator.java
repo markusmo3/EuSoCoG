@@ -1,19 +1,11 @@
 package de.nxg.eusocog;
 
-import java.awt.Desktop;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.io.*;
+import java.net.*;
+import java.nio.file.*;
+import java.util.*;
 import java.util.concurrent.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 /**
  * This Class generates the source for all Euler Problems available at
@@ -102,11 +94,11 @@ public final class EulerSourceGenerator {
             + "}\n";
 
     /** the amount of Problems to be pulled in parallel */
-    private static final int GENERATE_ALL_BATCH_SIZE = 50;
+    private static final int GENERATE_ALL_BATCH_SIZE = getSystemProperty("de.nxg.eusocog.generateAllBatchSize", 50);
     /** the amount of thread that should pull problems */
-    private static final int THREAD_COUNT = 4;
+    private static final int THREAD_COUNT = getSystemProperty("de.nxg.eusocog.threadCount", 4);
     /** max amount of classes per subpackage */
-    private static final int SUBPACKAGE_SIZE = 50;
+    private static final int SUBPACKAGE_SIZE = getSystemProperty("de.nxg.eusocog.subpackageSize", 50);
 
     // #########################################################################
     // ############################# CLASS FIELDS ##############################
@@ -158,7 +150,7 @@ public final class EulerSourceGenerator {
      * Creates a new SourceGenerator Object
      *
      * @param sourceDestinationFolder
-     *            the path where the generated sources should be saved in
+     *            The path where the generated sources should be saved in
      * @param problemClassPrefix
      *            The prefix for the generated classes (e.g. if prefix = "Euler",
      *            Euler001.java, Euler002.java, ...)
@@ -173,6 +165,17 @@ public final class EulerSourceGenerator {
      */
     public EulerSourceGenerator(Path sourceDestinationFolder, String problemClassPrefix, String sourcePackage,
             boolean generatePackageStructure, String subPackagePrefix) {
+        if (sourceDestinationFolder == null) {
+            throw new NullPointerException("sourceDestinationFolder mustn't be null");
+        }
+        if (problemClassPrefix == null || problemClassPrefix.trim().isEmpty()
+                || !Character.isJavaIdentifierStart(problemClassPrefix.charAt(0))) {
+            throw new IllegalArgumentException("problemClassPrefix must contain at least one valid character");
+        }
+        if (subPackagePrefix == null || subPackagePrefix.trim().isEmpty()
+                || !Character.isJavaIdentifierStart(subPackagePrefix.charAt(0))) {
+            throw new IllegalArgumentException("subPackagePrefix must contain at least one valid character");
+        }
         this.sourceDestinationFolder = sourceDestinationFolder;
         this.problemClassPrefix = problemClassPrefix;
         this.sourcePackage = sourcePackage;
@@ -279,6 +282,10 @@ public final class EulerSourceGenerator {
     // #########################################################################
 
     private SourceGenResult _generate(int problemNo, boolean overwriteExisting) {
+        if (problemNo < 0) {
+            throw new IllegalArgumentException("There surely are no negative Problems...");
+        }
+
         StringBuffer sb = getWebpageAsString(URL_PREFIX + problemNo);
 
         if (sb.toString().trim().isEmpty()) {
@@ -307,9 +314,15 @@ public final class EulerSourceGenerator {
                     Files.createDirectories(classSavePath);
                 }
                 Path problemFilePath = classSavePath.resolve(generatedClassName + ".java");
-                if (!Files.exists(problemFilePath) || overwriteExisting) {
+                if (!Files.exists(problemFilePath)) {
                     Files.write(problemFilePath, generatedClass.getBytes(),
                             StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                } else if (overwriteExisting) {
+                    System.out.println("Overwriting File: " + problemFilePath);
+                    Files.write(problemFilePath, generatedClass.getBytes(),
+                            StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                } else {
+                    System.out.println("File allready exists: " + problemFilePath);
                 }
                 return new SourceGenResult(problemNo, true);
             } catch (IOException e) {
@@ -398,20 +411,17 @@ public final class EulerSourceGenerator {
         return substring;
     }
 
-    public static void main(String[] args) throws IOException {
-        Path sourceDestination = Files.createTempDirectory("EuSoCoGTest");
-        String problemClassPrefix = "Euler";
-        String sourcePackage = "de.nxg.eulersolution";
-        boolean generatePackageStructure = true;
-
-        EulerSourceGenerator generator = new EulerSourceGenerator(sourceDestination, problemClassPrefix,
-                sourcePackage, generatePackageStructure);
-
-        if (Desktop.isDesktopSupported()) {
-            Desktop.getDesktop().open(sourceDestination.toFile());
+    private static int getSystemProperty(String property, int fallbackDefault) {
+        String value = System.getProperty(property);
+        if (value != null && !value.isEmpty()) {
+            try {
+                return Integer.parseInt(value);
+            } catch (NumberFormatException e) {
+                System.out.println("Failed to parse Property '" + property
+                        + "' using the fallbackDefault '" + fallbackDefault + "' instead");
+            }
         }
-
-        generator.generateAll();
+        return fallbackDefault;
     }
 
     // #########################################################################
