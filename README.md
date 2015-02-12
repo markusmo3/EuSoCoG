@@ -1,6 +1,9 @@
 # EuSoCoG
 EuSoCoG - Euler SourceCode Generator for Java
 
+## How 2 Use / Example
+https://github.com/noobxgockel/EuSoCoG/blob/master/src/de/nxg/eusocog/example/EulerExample.java
+
 ## License
 <a rel="license" href="http://creativecommons.org/publicdomain/zero/1.0/">
   <img src="http://i.creativecommons.org/p/zero/1.0/88x31.png" style="border-style: none;" alt="CC0"/>
